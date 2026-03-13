@@ -6,7 +6,8 @@
   <title>Kalender Indonesia</title>
   <!-- PWA -->
   <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#144ac9" />
+  <meta name="theme-color" content="#f1f5f9" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -471,6 +472,9 @@
   function applyDark(dark) {
     document.documentElement.classList.toggle('dark', dark);
     document.getElementById('dmIcon').className = dark ? 'bi bi-sun-fill' : 'bi bi-moon-fill';
+    document.querySelectorAll('meta[name="theme-color"]').forEach(m => {
+      m.setAttribute('content', dark ? '#0f172a' : '#f1f5f9');
+    });
   }
   function toggleDark() {
     const dark = !document.documentElement.classList.contains('dark');
