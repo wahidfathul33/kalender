@@ -719,6 +719,13 @@
     currentMonth = today.getMonth();
     setYear(currentYear);
   })();
+
+  // ── Service Worker ─────────────────────────────────────
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js');
+    });
+  }
 </script>
 </body>
 </html>
