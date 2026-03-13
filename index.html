@@ -481,13 +481,35 @@
   }
 
   // ── Fetch ──────────────────────────────────────────────
+  const CACHE_KEY = 'holiday_cache';
+  const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
   async function fetchHolidays() {
+    // Try localStorage cache first
     try {
-      const res = await fetch(API_URL);
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const { ts, data } = JSON.parse(cached);
+        if (Date.now() - ts < CACHE_TTL) {
+          holidays = data;
+          return;
+        }
+      }
+    } catch (_) {}
+
+    // Fetch with 8-second timeout
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(API_URL, { signal: controller.signal });
+      clearTimeout(timer);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const raw = await res.json();
       delete raw.info;
       holidays = raw;
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: holidays }));
+      } catch (_) {}
     } catch (e) {
       console.warn('Gagal memuat data hari libur:', e.message);
       holidays = {};
