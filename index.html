@@ -54,7 +54,7 @@
       --text: #f1f5f9;
       --text-2: #94a3b8;
       --text-3: #475569;
-      --divider: #1e293b;
+      --divider: #334155;
       --nav-btn-bg: #334155;
       --nav-btn-hover: #475569;
       --tab-bg: #334155;
@@ -126,6 +126,8 @@
 
     /* ── MONTH CARD ── */
     .month-card {
+      min-height: 320px;
+      max-height: 320px;
       border: none;
       border-radius: 14px;
       box-shadow: 0 1px 6px rgba(0,0,0,0.07);
@@ -153,7 +155,7 @@
       font-size: 0.65rem;
       font-weight: 700;
       padding: 3px 0 5px;
-      color: var(--text-3);
+      color: var(--text-2);
     }
     .dh.sun { color: var(--sunday-color); }
     .dh.sat { color: var(--saturday-color); }
@@ -172,6 +174,7 @@
       margin: auto;
     }
     .dc.empty { pointer-events: none; }
+    .dc.muted { color: var(--text-3); pointer-events: none; }
     .dc.sun { color: var(--sunday-color); font-weight: 500; }
     .dc.sat { color: var(--saturday-color); font-weight: 500; }
 
@@ -312,7 +315,7 @@
       font-size: 0.72rem;
       font-weight: 700;
       padding: 4px 0 8px;
-      color: var(--text-3);
+      color: var(--text-2);
     }
     .dh-lg.sun { color: var(--sunday-color); }
     .dh-lg.sat { color: var(--saturday-color); }
@@ -330,6 +333,7 @@
       margin: auto;
     }
     .dc-lg.empty { pointer-events: none; }
+    .dc-lg.muted { color: var(--text-3); pointer-events: none; }
     .dc-lg.sun { color: var(--sunday-color); font-weight: 500; }
     .dc-lg.sat { color: var(--saturday-color); font-weight: 500; }
     .dc-lg.is-holiday { background: var(--holiday-bg); color: var(--holiday-color); font-weight: 700; }
@@ -491,8 +495,7 @@
     const expanded = btn.dataset.expanded === '1';
     extras.forEach(el => el.style.display = expanded ? '' : 'flex');
     btn.dataset.expanded = expanded ? '' : '1';
-    const count = parseInt(btn.dataset.count, 10);
-    btn.textContent = expanded ? `${count} hari libur` : 'Sembunyikan';
+    btn.textContent = expanded ? btn.dataset.label : 'Sembunyikan';
   }
 
   // ── Fetch ──────────────────────────────────────────────
@@ -545,8 +548,12 @@
       `<div class="dh${i===0?' sun':i===6?' sat':''}">${d}</div>`
     ).join('');
 
-    // Empty cells
-    let cells = Array(firstDow).fill('<div class="dc empty"></div>');
+    // Leading cells — prev month dates
+    const prevTotalDays = new Date(year, month, 0).getDate();
+    let cells = [];
+    for (let i = firstDow - 1; i >= 0; i--) {
+      cells.push(`<div class="dc muted">${prevTotalDays - i}</div>`);
+    }
     const monthHolidays = [];
 
     for (let d = 1; d <= totalDays; d++) {
@@ -569,18 +576,44 @@
       cells.push(`<div class="${cls}">${d}</div>`);
     }
 
-    // Inline holiday list — all hidden by default, collapsible
+    // Trailing cells — next month dates
+    const trailingCount = (7 - ((firstDow + totalDays) % 7)) % 7;
+    for (let i = 1; i <= trailingCount; i++) {
+      cells.push(`<div class="dc muted">${i}</div>`);
+    }
+
+    // Inline holiday list — visible count based on number of weeks in month
+    const numWeeks = Math.ceil((firstDow + totalDays) / 7);
+    // visibleCount: how many to show before collapse trigger
+    // threshold: if total <= threshold, show all; otherwise show visibleCount
+    let visibleCount, threshold;
+    if (numWeeks <= 4)      { visibleCount = 3; threshold = 4; }
+    else if (numWeeks === 5){ visibleCount = 2; threshold = 3; }
+    else                    { visibleCount = 0; threshold = 1; }
+
     let hlHtml = '';
     if (monthHolidays.length > 0) {
-      const allItems = monthHolidays.map(({ d, info }) => {
+      const needToggle = monthHolidays.length > threshold;
+      const showCount = needToggle ? visibleCount : monthHolidays.length;
+      const allItems = monthHolidays.map(({ d, info }, idx) => {
         const type = info.holiday ? 'hol' : 'evt';
-        return `<div class="mhl-item mhl-extra">
+        const extraCls = idx >= showCount ? ' mhl-extra' : '';
+        return `<div class="mhl-item${extraCls}">
           <span class="mhl-day ${type}">${d}</span>
           <span class="mhl-text">${info.summary[0]}</span>
         </div>`;
       }).join('');
       const toggleId = `tog-${year}-${month}`;
-      const toggleBtn = `<button class="mhl-toggle" id="${toggleId}" onclick="toggleHl(this)" data-count="${monthHolidays.length}">${monthHolidays.length} hari libur</button>`;
+      const hiddenItems = monthHolidays.slice(showCount);
+      const hiddenHol = hiddenItems.filter(x => x.info.holiday).length;
+      const hiddenEvt = hiddenItems.filter(x => !x.info.holiday).length;
+      const parts = [];
+      if (hiddenHol > 0) parts.push(`${hiddenHol} hari libur`);
+      if (hiddenEvt > 0) parts.push(`${hiddenEvt} perayaan`);
+      const toggleLabel = `+ ${parts.join(', ')}`;
+      const toggleBtn = needToggle
+        ? `<button class="mhl-toggle" id="${toggleId}" onclick="toggleHl(this)" data-label="${toggleLabel}">${toggleLabel}</button>`
+        : '';
       hlHtml = `<div class="month-holidays">${allItems}${toggleBtn}</div>`;
     }
 
@@ -618,7 +651,12 @@
       `<div class="dh-lg${i===0?' sun':i===6?' sat':''}">${d}</div>`
     ).join('');
 
-    let cells = Array(firstDow).fill('<div class="dc-lg empty"></div>');
+    // Leading cells — prev month dates
+    const prevTotalDaysLg = new Date(year, month, 0).getDate();
+    let cells = [];
+    for (let i = firstDow - 1; i >= 0; i--) {
+      cells.push(`<div class="dc-lg muted">${prevTotalDaysLg - i}</div>`);
+    }
     const monthHolidays = [];
 
     for (let d = 1; d <= totalDays; d++) {
@@ -638,6 +676,12 @@
       }
 
       cells.push(`<div class="${cls}">${d}</div>`);
+    }
+
+    // Trailing cells — next month dates
+    const trailingCountLg = (7 - ((firstDow + totalDays) % 7)) % 7;
+    for (let i = 1; i <= trailingCountLg; i++) {
+      cells.push(`<div class="dc-lg muted">${i}</div>`);
     }
 
     let hlHtml = '';
